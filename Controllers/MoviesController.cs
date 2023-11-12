@@ -23,7 +23,7 @@ namespace MvcMovie.Controllers
         }
 
         // GET: Movies
-        public async Task<IActionResult> Index(string movieGenre, string searchString)
+        public async Task<IActionResult> Index(string movieGenre, string searchString, string SortBy)
         {
             if (_context.Movie == null)
             {
@@ -32,11 +32,17 @@ namespace MvcMovie.Controllers
 
             // Use LINQ to get list of genres.
             IQueryable<string> genreQuery = from m in _context.Movie
-                                            orderby m.Genre
                                             select m.Genre;
             var movies = from m in _context.Movie
                          select m;
 
+            movies = SortBy switch
+            {
+                "Genre" => movies.OrderBy(m => m.Genre),
+                "Title" => movies.OrderBy(m => m.Title),
+                "ReleaseDate" => movies.OrderBy(m => m.ReleaseDate),
+                _ => movies.OrderBy(m => m.Genre),
+            };
             if (!string.IsNullOrEmpty(searchString))
             {
                 movies = movies.Where(s => s.Title!.Contains(searchString));
