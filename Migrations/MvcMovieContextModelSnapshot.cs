@@ -36,7 +36,6 @@ namespace MvcMovie.Migrations
                         .HasColumnType("nvarchar(30)");
 
                     b.Property<string>("ImageName")
-                        .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 

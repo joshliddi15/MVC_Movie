@@ -91,21 +91,17 @@ namespace MvcMovie.Controllers
                     string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "images");
                     string filePath = Path.Combine(uploadsFolder, image.FileName);
 
-                    using (var fileStream = new FileStream(filePath, FileMode.Create))
-                    {
-                        await image.CopyToAsync(fileStream);
-                    }
+                    using var fileStream = new FileStream(filePath, FileMode.Create);
+                    await image.CopyToAsync(fileStream);
                     return true;
                 }
                 else
                 {
-                    ModelState.AddModelError("image", "Invalid file type. Please upload an image in JPG or PNG format.");
                     return false;
                 }
             }
             else
             {
-                ModelState.AddModelError("image", "Please select a file to upload.");
                 return false;
             }
         }
@@ -117,10 +113,21 @@ namespace MvcMovie.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("Id,Title,ReleaseDate,Genre,Price,Rating")] Movie movie, IFormFile image)
         {
+            ModelState.Remove("image");
             if (ModelState.IsValid)
             {
-                if (await HandleImageUpload(movie, image))
-                { 
+                if (image != null)
+                {
+                    if (await HandleImageUpload(movie, image))
+                    { 
+                        _context.Add(movie);
+                        await _context.SaveChangesAsync();
+                        return RedirectToAction(nameof(Index));
+                    }
+                }
+                else
+                {
+                    movie.ImageName = "No Image.png";
                     _context.Add(movie);
                     await _context.SaveChangesAsync();
                     return RedirectToAction(nameof(Index));
@@ -150,35 +157,36 @@ namespace MvcMovie.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,Title,ReleaseDate,Genre,Price,Rating")] Movie movie, IFormFile image)
+        public async Task<IActionResult> Edit(int id, [Bind("Id,Title,ReleaseDate,Genre,Price,Rating, ImageName")] Movie movie, IFormFile image)
         {
             if (id != movie.Id)
             {
                 return NotFound();
             }
 
+            ModelState.Remove("image");
+            ModelState.Remove("ImageName");
+
             if (ModelState.IsValid)
             {
-                if (await HandleImageUpload(movie, image))
+                movie.ImageName = (await HandleImageUpload(movie, image) ? image.FileName : movie.ImageName);
+                try
                 {
-                    try
-                    {
-                        _context.Update(movie);
-                        await _context.SaveChangesAsync();
-                    }
-                    catch (DbUpdateConcurrencyException)
-                    {
-                        if (!MovieExists(movie.Id))
-                        {
-                            return NotFound();
-                        }
-                        else
-                        {
-                            throw;
-                        }
-                    }
-                    return RedirectToAction(nameof(Index));
+                    _context.Update(movie);
+                    await _context.SaveChangesAsync();
                 }
+                catch (DbUpdateConcurrencyException)
+                {
+                    if (!MovieExists(movie.Id))
+                    {
+                        return NotFound();
+                    }
+                    else
+                    {
+                        throw;
+                    }
+                }
+                return RedirectToAction(nameof(Index));
             }
             return View(movie);
         }
